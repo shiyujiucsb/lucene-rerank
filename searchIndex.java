@@ -99,7 +99,7 @@ public class searchIndex {
                         bodyQuery.append("body:" + term + " ");
                 }
 
-		System.out.println("Searching for '" + searchString + "'");
+		//System.out.println("Searching for '" + searchString + "'");
 		String submittedQuery = "(" + titleQuery.toString()
 					 + ") OR (" + bodyQuery.toString() + ")";
 		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
@@ -111,11 +111,11 @@ public class searchIndex {
 		Query query = queryParser.parse(submittedQuery);
 		Query queryTitleOnly = queryParser.parse(titleQuery.toString());
 		Query queryBodyOnly = queryParser.parse(bodyQuery.toString());
-		TopDocs topDocs = searcher.search(query, 10);
+		TopDocs topDocs = searcher.search(query, 2000);
 		ScoreDoc[] hits = topDocs.scoreDocs;
-		System.out.println("Number of hits: " + topDocs.totalHits);
+		//System.out.println("Number of hits: " + topDocs.totalHits);
 
-		for (int i=0; i<Math.min(1, topDocs.totalHits); i++) {
+		for (int i=0; i<Math.min(2000, topDocs.totalHits); i++) {
 			Document document = searcher.doc(hits[i].doc);
 			String docid = document.getField("docid").stringValue();
 			searcher.setSimilarity(new BM25Similarity());
