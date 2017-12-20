@@ -164,7 +164,7 @@ public class searchIndex {
                         float maxInvMinDistanceBody  = Float.MIN_VALUE;
                         float avgInvMinDistanceBody  = 0;
 			for (int k=0; k < queryLength-1; k++) {
-				for (int j=i+1; j < queryLength; j++) {
+				for (int j=k+1; j < queryLength; j++) {
 					float invMinDistance = 
 						getMinDistance(searcher, queryParser, hits[i].doc, 
 								"title", queryTerms.get(k), queryTerms.get(j));
