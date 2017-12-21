@@ -3,6 +3,7 @@ K = 20
 import warnings
 import numpy as np
 from sklearn.metrics import roc_auc_score
+from scipy.stats import spearmanr
 from math import log
 import sys
 assert len(sys.argv) == 2
@@ -58,8 +59,8 @@ def avg_spearmanr(rel_list, ranking_list):
     if len(set([ranking_list[i] for i in qid_lists[qid]])) < 2: continue
     Y = [rel_list[i] for i in qid_lists[qid]]
     X = [ranking_list[i] for i in qid_lists[qid]]
-    res = np.cov(X, Y) / np.std(X) / np.std(Y)
-    r += res
+    res = spearmanr(Y, X)
+    r += res[0]
     n_queries += 1
   if n_queries == 0: return 0
   return r / n_queries
