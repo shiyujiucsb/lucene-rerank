@@ -33,6 +33,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.store.Directory;
@@ -40,6 +41,7 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 
 public class searchIndex {
+	public static final int TOP = 2000;
 
 	public static final String FILE_TO_INDEX_DIRECTORY = "./lines-trec45-unprocessed.txt";
 	public static final String INDEX_DIRECTORY = "./index";
@@ -51,8 +53,10 @@ public class searchIndex {
 	public static String normalize(String query) {
 		StringBuilder sb = new StringBuilder();
 		for (char c: query.toCharArray()) {
-			if (Character.isLetter(c)) sb.append(Character.toLowerCase(c));
-			else sb.append(' ');
+			if (Character.isLetter(c) || Character.isDigit(c)) 
+				sb.append(Character.toLowerCase(c));
+			if (c == ' ')
+				sb.append(' ');
 		}
 		return sb.toString().trim();
 	}
@@ -73,15 +77,21 @@ public class searchIndex {
 					String field, String w1, String w2) throws Exception {
 		for (int distance = 1; distance <= 100; distance++) {
 			Query proximityQuery = queryParser.parse(field + ":\"" + w1 + " " + w2 + "\"~" + distance);
-			if (searcher.explain(proximityQuery, doc).getValue() > .01)
+			if (searcher.explain(proximityQuery, doc).isMatch())
 				return (float)(1.0 / distance);
 		}
 		return 0;
 	}
 
+	public static float getScore(IndexSearcher searcher, Query query, int doc) throws Exception {
+		Explanation explanation = searcher.explain(query, doc);
+		if (explanation.isMatch()) 
+			return explanation.getValue();
+		else	return 0;
+	}
+
 	public static void searchIndex(String qid, String searchString) throws Exception {
-		StringBuilder titleQuery = new StringBuilder();
-		StringBuilder bodyQuery = new StringBuilder();
+		StringBuilder query = new StringBuilder();
 		StringTokenizer stQuery = new StringTokenizer(searchString);
 		Vector<String> queryTerms = new Vector<String>();
 		while (stQuery.hasMoreTokens()) {
@@ -92,44 +102,43 @@ public class searchIndex {
 		for (String term : queryTerms) {
 			if (start) start = false;
                         else {
-				titleQuery.append(" OR ");
-				bodyQuery.append(" OR ");
+				query.append("  "); // same as OR
 			}
-			titleQuery.append("title:" + term + " ");
-                        bodyQuery.append("body:" + term + " ");
+			query.append(term);
                 }
 
 		//System.out.println("Searching for '" + searchString + "'");
-		String submittedQuery = "(" + titleQuery.toString()
-					 + ") OR (" + bodyQuery.toString() + ")";
+		String submittedQuery = FIELD_TITLE + ":(" + query.toString()
+					 + ") OR " + FIELD_BODY + ":(" + query.toString() + ")";
 		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
 		IndexReader indexReader = DirectoryReader.open(directory);
 		IndexSearcher searcher = new IndexSearcher(indexReader);
+		searcher.setSimilarity(new BM25Similarity());
 
 		Analyzer analyzer = new StandardAnalyzer();
-		QueryParser queryParser = new QueryParser(FIELD_BODY, analyzer);
-		Query query = queryParser.parse(submittedQuery);
-		Query queryTitleOnly = queryParser.parse(titleQuery.toString());
-		Query queryBodyOnly = queryParser.parse(bodyQuery.toString());
-		TopDocs topDocs = searcher.search(query, 2000);
+		QueryParser queryParser = new QueryParser(FIELD_DOCID, analyzer);
+		Query queryAll = queryParser.parse(submittedQuery);
+		Query queryTitleOnly = queryParser.parse(FIELD_TITLE + ":(" + query.toString() + ")");
+		Query queryBodyOnly = queryParser.parse(FIELD_BODY + ":(" + query.toString() + ")");
+		TopDocs topDocs = searcher.search(queryAll, TOP);
 		ScoreDoc[] hits = topDocs.scoreDocs;
 		//System.out.println("Number of hits: " + topDocs.totalHits);
 
-		for (int i=0; i<Math.min(2000, topDocs.totalHits); i++) {
+		for (int i=0; i<Math.min(TOP, topDocs.totalHits); i++) {
 			Document document = searcher.doc(hits[i].doc);
 			String docid = document.getField("docid").stringValue();
 			searcher.setSimilarity(new BM25Similarity());
-			float bm25Title = searcher.explain(queryTitleOnly, hits[i].doc).getValue();
+			float bm25Title = getScore(searcher, queryTitleOnly, hits[i].doc);
 			searcher.setSimilarity(new ClassicSimilarity());
-			float tfidfTitle = searcher.explain(queryTitleOnly, hits[i].doc).getValue();
+			float tfidfTitle = getScore(searcher, queryTitleOnly, hits[i].doc);
 			searcher.setSimilarity(new BM25Similarity());
-                        float bm25Body = searcher.explain(queryBodyOnly, hits[i].doc).getValue();
+                        float bm25Body = getScore(searcher, queryBodyOnly, hits[i].doc);
                         searcher.setSimilarity(new ClassicSimilarity());
-                        float tfidfBody = searcher.explain(queryBodyOnly, hits[i].doc).getValue();
+                        float tfidfBody = getScore(searcher, queryBodyOnly, hits[i].doc);
 			searcher.setSimilarity(new BM25Similarity());
-                        float bm25 = searcher.explain(query, hits[i].doc).getValue();
+                        float bm25 = getScore(searcher, queryAll, hits[i].doc);
                         searcher.setSimilarity(new ClassicSimilarity());
-                        float tfidf = searcher.explain(query, hits[i].doc).getValue();
+                        float tfidf = getScore(searcher, queryAll, hits[i].doc);
 
 			float minTfidfTitle = Float.MAX_VALUE;
 			float maxTfidfTitle = Float.MIN_VALUE;
@@ -137,7 +146,7 @@ public class searchIndex {
                 	start = true;
                 	for (String term : queryTerms) {
                         	Query subQuery = queryParser.parse("title:" + term);
-				float subTfidf = searcher.explain(subQuery, hits[i].doc).getValue();
+				float subTfidf = getScore(searcher, subQuery, hits[i].doc);
 				if (subTfidf < minTfidfTitle) minTfidfTitle = subTfidf;
 				if (subTfidf > maxTfidfTitle) maxTfidfTitle = subTfidf;
 				avgTfidfTitle += subTfidf;
@@ -150,7 +159,7 @@ public class searchIndex {
                         start = true;
                         for (String term : queryTerms) {
                                 Query subQuery = queryParser.parse("body:" + term);
-                                float subTfidf = searcher.explain(subQuery, hits[i].doc).getValue();
+                                float subTfidf = getScore(searcher, subQuery, hits[i].doc);
                                 if (subTfidf < minTfidfBody) minTfidfBody = subTfidf;
                                 if (subTfidf > maxTfidfBody) maxTfidfBody = subTfidf;
                                 avgTfidfBody += subTfidf;
