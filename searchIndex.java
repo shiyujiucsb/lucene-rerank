@@ -52,11 +52,16 @@ public class searchIndex {
 
 	public static String normalize(String query) {
 		StringBuilder sb = new StringBuilder();
+		boolean isSeparated = true;
 		for (char c: query.toCharArray()) {
-			if (Character.isLetter(c) || Character.isDigit(c)) 
+			if (Character.isLetter(c) || Character.isDigit(c)) { 
 				sb.append(Character.toLowerCase(c));
-			if (c == ' ')
+				isSeparated = false;
+			}
+			else if (isSeparated == false) {
 				sb.append(' ');
+				isSeparated = true;
+			}
 		}
 		return sb.toString().trim();
 	}
