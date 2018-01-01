@@ -13,7 +13,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Iterator;
 import java.nio.file.Paths;
+import java.util.StringTokenizer;
 
+import org.tartarus.snowball.ext.EnglishStemmer;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -37,12 +39,26 @@ import org.apache.lucene.store.LockObtainFailedException;
 
 public class buildIndex {
 
-	public static final String FILE_TO_INDEX_DIRECTORY = "./lines-trec45-unprocessed.txt";
+	public static final String FILE_TO_INDEX_DIRECTORY = "/mnt/data1/datasets/lines-trec45.txt";
 	public static final String INDEX_DIRECTORY = "./index";
 
 	public static final String FIELD_DOCID = "docid";
 	public static final String FIELD_TITLE = "title";
 	public static final String FIELD_BODY  = "body";
+
+	public static String stemming(String string) {
+                StringTokenizer st = new StringTokenizer(string);
+                StringBuilder sb = new StringBuilder();
+                EnglishStemmer stemmer = new EnglishStemmer();
+                while (st.hasMoreTokens()) {
+                        String token = st.nextToken();
+                        stemmer.setCurrent(token);
+                        stemmer.stem();
+                        sb.append(stemmer.getCurrent());
+                        sb.append(" ");
+                }
+                return sb.toString();
+        }
 
 	public static void main(String[] args) throws Exception {
 
@@ -64,9 +80,9 @@ public class buildIndex {
 				document.add(new StringField(FIELD_DOCID, fields[0], 
 						Field.Store.YES));
 				document.add(new TextField(FIELD_TITLE, 
-						new BufferedReader(new StringReader(fields[1]))));
+						new BufferedReader(new StringReader(stemming(fields[1])))));
 				document.add(new TextField(FIELD_BODY, 
-						new BufferedReader(new StringReader(fields[2]))));
+						new BufferedReader(new StringReader(stemming(fields[2])))));
 				indexWriter.addDocument(document);
 			}
 		}

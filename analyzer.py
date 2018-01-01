@@ -6,20 +6,53 @@ from sklearn.metrics import roc_auc_score
 from scipy.stats import spearmanr
 from math import log
 import sys
-assert len(sys.argv) == 2
+assert len(sys.argv) == 3
 
+n_real_rel_docs = {}
+with open(sys.argv[2], "r") as qrels:
+  for line in qrels:
+    qid, _, _, rel = line.split(' ')
+    qid = int(qid)
+    if int(rel) > 0:
+      if qid in n_real_rel_docs:
+        n_real_rel_docs[qid] += 1
+      else:
+        n_real_rel_docs[qid] = 0
+    
 feature_lists  = {}
 relevance_list = []
 raw_relevance_list = []
 qid_lists = {}
+ndcgs = {}
+
+def MAP(ranking_list, rel_list):
+  ap = 0.0
+  n_queries = 0
+  for qid in qid_lists:
+    n_rel_docs = sum(rel_list[i] for i in qid_lists[qid])
+    if n_rel_docs == 0: continue
+    top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
+               key = lambda x: x[0], reverse=True)
+    n_queries += 1
+    p = 0.0
+    count = 0.0
+    for i in range(len(top_docs)):
+      count += top_docs[i][1]
+      if top_docs[i][1] == 1:
+        p += count / (i+1.0)
+    ap += p/n_real_rel_docs[qid]
+  return ap/n_queries
 
 def P_at_k(ranking_list, rel_list, K):
   precision = 0.0
+  n_queries = 0
   for qid in qid_lists:
     top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
                key = lambda x: x[0], reverse=True)[:K]
-    precision += sum([x[1] for x in top_docs]) * 1.0 / K
-  return precision / len(qid_lists)
+    if len(top_docs) == 0: continue
+    precision += sum([x[1] for x in top_docs]) * 1.0 / len(top_docs)
+    n_queries += 1
+  return precision / n_queries
 
 def NDCG_at_k(ranking_list, rel_list, K):
   ndcg = 0.0
@@ -35,6 +68,7 @@ def NDCG_at_k(ranking_list, rel_list, K):
     idcg = sum((2**true_top_rels[i]-1) * log(2.0) / log(i+2) for i in range(len(true_top_rels)))
     ndcg += dcg/idcg
     n_queries += 1
+    ndcgs[qid] = dcg/idcg
   if n_queries == 0: return 0
   return ndcg / n_queries
 
@@ -88,10 +122,22 @@ with open(sys.argv[1], "r") as f:
       feature_lists[fid].append(val)
 
 for feat in sorted(feature_lists.keys()):
-  AUC = avg_AUC(relevance_list, feature_lists[feat])
+#for feat in [11]:
+  AUC_inc = avg_AUC(relevance_list, feature_lists[feat])
+  AUC_dec = avg_AUC(relevance_list, map(lambda x:-x, feature_lists[feat]))
+  AUC = max(AUC_inc, AUC_dec)
   r = avg_spearmanr(raw_relevance_list, feature_lists[feat])
-  p = P_at_k(feature_lists[feat], relevance_list, K)
-  ndcg = NDCG_at_k(feature_lists[feat], raw_relevance_list, K)
-  print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f}".format( \
-         feat, p, ndcg, AUC, r)
+  p_inc = P_at_k(feature_lists[feat], relevance_list, K)
+  p_dec = P_at_k(map(lambda x:-x, feature_lists[feat]), relevance_list, K)
+  p = max(p_inc, p_dec)
+  map_inc = MAP(feature_lists[feat], relevance_list)
+  map_dec = MAP(map(lambda x:-x, feature_lists[feat]), relevance_list)
+  mapIR = max(map_inc, map_dec)
+  ndcg_inc = NDCG_at_k(feature_lists[feat], raw_relevance_list, K)
+  ndcg_dec = NDCG_at_k(map(lambda x:-x, feature_lists[feat]), raw_relevance_list, K)
+  ndcg = max(ndcg_inc, ndcg_dec)
+  print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f} {5:1.3f}".format( \
+         feat, p, ndcg, mapIR, AUC, r)
+  #for qid in ndcgs:
+  #  print qid, ndcgs[qid]
 

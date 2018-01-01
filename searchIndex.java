@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
+import org.tartarus.snowball.ext.EnglishStemmer;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -43,12 +44,39 @@ import org.apache.lucene.store.LockObtainFailedException;
 public class searchIndex {
 	public static final int TOP = 2000;
 
-	public static final String FILE_TO_INDEX_DIRECTORY = "./lines-trec45-unprocessed.txt";
 	public static final String INDEX_DIRECTORY = "./index";
 
 	public static final String FIELD_DOCID = "docid";
 	public static final String FIELD_TITLE = "title";
 	public static final String FIELD_BODY  = "body";
+
+	// assume most stopwords (e.g. of, in, on, at) have length < 3
+	public static String removeStopwords(String string) {
+		StringTokenizer st = new StringTokenizer(string);
+		StringBuilder sb = new StringBuilder();
+		while (st.hasMoreTokens()) {
+			String token = st.nextToken();
+			if (token.length() > 2) {
+				sb.append(token);
+				sb.append(" ");
+			}
+		}
+		return sb.toString();
+	}
+
+	public static String stemming(String string) {
+		StringTokenizer st = new StringTokenizer(string);
+                StringBuilder sb = new StringBuilder();
+		EnglishStemmer stemmer = new EnglishStemmer();
+                while (st.hasMoreTokens()) {
+                        String token = st.nextToken();
+			stemmer.setCurrent(token);
+			stemmer.stem();
+                        sb.append(stemmer.getCurrent());
+                        sb.append(" ");
+                }
+                return sb.toString();
+	}
 
 	public static String normalize(String query) {
 		StringBuilder sb = new StringBuilder();
@@ -100,7 +128,7 @@ public class searchIndex {
 		StringTokenizer stQuery = new StringTokenizer(searchString);
 		Vector<String> queryTerms = new Vector<String>();
 		while (stQuery.hasMoreTokens()) {
-			queryTerms.add(stQuery.nextToken());
+			queryTerms.add(stemming(stQuery.nextToken()));
 		}
 		int queryLength = queryTerms.size();
 		boolean start = true;
@@ -110,10 +138,11 @@ public class searchIndex {
 				query.append("  "); // same as OR
 			}
 			query.append(term);
+			//query.append("~2"); // fuzzy search w/ at most 2 edit distance
                 }
 
 		//System.out.println("Searching for '" + searchString + "'");
-		String submittedQuery = FIELD_TITLE + ":(" + query.toString()
+		String bothQuery = FIELD_TITLE + ":(" + query.toString()
 					 + ") OR " + FIELD_BODY + ":(" + query.toString() + ")";
 		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
 		IndexReader indexReader = DirectoryReader.open(directory);
@@ -122,7 +151,7 @@ public class searchIndex {
 
 		Analyzer analyzer = new StandardAnalyzer();
 		QueryParser queryParser = new QueryParser(FIELD_DOCID, analyzer);
-		Query queryAll = queryParser.parse(submittedQuery);
+		Query queryAll = queryParser.parse(bothQuery);
 		Query queryTitleOnly = queryParser.parse(FIELD_TITLE + ":(" + query.toString() + ")");
 		Query queryBodyOnly = queryParser.parse(FIELD_BODY + ":(" + query.toString() + ")");
 		TopDocs topDocs = searcher.search(queryAll, TOP);
