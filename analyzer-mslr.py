@@ -120,5 +120,5 @@ for feat in sorted(feature_lists.keys()):
   ndcg_dec = NDCG_at_k(map(lambda x:-x, feature_lists[feat]), raw_relevance_list, K)
   ndcg = max(ndcg_inc, ndcg_dec)
   print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f} {5:1.3f}".format( \
-         feat, mapIR, p, ndcg, AUC, r)
+         feat, p, ndcg, mapIR, AUC, r)
 
