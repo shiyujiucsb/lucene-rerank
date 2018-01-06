@@ -9,6 +9,7 @@ import sys
 assert len(sys.argv) == 3
 
 n_real_rel_docs = {}
+real_rel = {}
 with open(sys.argv[2], "r") as qrels:
   for line in qrels:
     qid, _, _, rel = line.split(' ')
@@ -16,14 +17,22 @@ with open(sys.argv[2], "r") as qrels:
     if int(rel) > 0:
       if qid in n_real_rel_docs:
         n_real_rel_docs[qid] += 1
+        real_rel[qid].append(int(rel))
       else:
-        n_real_rel_docs[qid] = 0
+        n_real_rel_docs[qid] = 1
+        real_rel[qid] = [int(rel)]
     
 feature_lists  = {}
 relevance_list = []
 raw_relevance_list = []
 qid_lists = {}
-ndcgs = {}
+idcgs = {}
+
+for qid in real_rel:
+  rels= sorted(real_rel[qid], reverse=True)[:K]
+  idcgs[qid] = 0.0
+  for i in range(len(rels)):
+    idcgs[qid] += (2**rels[i]-1) * log(2.0) / log(i+2)
 
 def MAP(ranking_list, rel_list):
   ap = 0.0
@@ -65,10 +74,8 @@ def NDCG_at_k(ranking_list, rel_list, K):
     if len(top_docs) == 0: continue
     if true_top_rels[0] == 0: continue
     dcg  = sum((2**top_docs[i][1]-1) * log(2.0) / log(i+2) for i in range(len(top_docs)))
-    idcg = sum((2**true_top_rels[i]-1) * log(2.0) / log(i+2) for i in range(len(true_top_rels)))
-    ndcg += dcg/idcg
+    ndcg += dcg/idcgs[qid]
     n_queries += 1
-    ndcgs[qid] = dcg/idcg
   if n_queries == 0: return 0
   return ndcg / n_queries
 
@@ -138,6 +145,6 @@ for feat in sorted(feature_lists.keys()):
   ndcg = max(ndcg_inc, ndcg_dec)
   print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f} {5:1.3f}".format( \
          feat, p, ndcg, mapIR, AUC, r)
-  #for qid in ndcgs:
-  #  print qid, ndcgs[qid]
+#for qid in idcgs:
+#  print qid, idcgs[qid]
 
