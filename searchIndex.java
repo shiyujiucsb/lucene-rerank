@@ -44,7 +44,7 @@ import org.apache.lucene.store.LockObtainFailedException;
 public class searchIndex {
 	public static final int TOP = 2000;
 
-	public static final String INDEX_DIRECTORY = "./index";
+	public static final String INDEX_DIRECTORY = "./ohsume-index";
 
 	public static final String FIELD_DOCID = "docid";
 	public static final String FIELD_TITLE = "title";
@@ -96,7 +96,7 @@ public class searchIndex {
 
 	public static void main(String[] args) throws Exception {
 		BufferedReader  br = new BufferedReader(
-					new FileReader("queries.04robust.301-450_601-700.txt"));
+					new FileReader("queries.ohsume.mesh.txt"));
 		String line;
 		while((line = br.readLine()) != null) {
 			String qid = line.substring(0, line.indexOf(" "));
@@ -176,29 +176,49 @@ public class searchIndex {
 
 			float minTfidfTitle = Float.MAX_VALUE;
 			float maxTfidfTitle = Float.MIN_VALUE;
+			float minBM25Title = Float.MAX_VALUE;
+			float maxBM25Title = Float.MIN_VALUE;
 			float avgTfidfTitle = 0;
+			float avgBM25Title = 0;
                 	start = true;
                 	for (String term : queryTerms) {
                         	Query subQuery = queryParser.parse("title:" + term);
+				searcher.setSimilarity(new ClassicSimilarity());
 				float subTfidf = getScore(searcher, subQuery, hits[i].doc);
+				searcher.setSimilarity(new BM25Similarity());
+				float subBM25  = getScore(searcher, subQuery, hits[i].doc);
 				if (subTfidf < minTfidfTitle) minTfidfTitle = subTfidf;
 				if (subTfidf > maxTfidfTitle) maxTfidfTitle = subTfidf;
+				if (subBM25 < minBM25Title)   minBM25Title  = subBM25;
+				if (subBM25 > maxBM25Title)   maxBM25Title  = subBM25;
 				avgTfidfTitle += subTfidf;
+				avgBM25Title += subBM25;
                 	}
 			avgTfidfTitle /= queryLength;
+			avgBM25Title /= queryLength;
 
-			float minTfidfBody  = Float.MAX_VALUE;
-			float maxTfidfBody  = Float.MIN_VALUE;
-			float avgTfidfBody = 0;
+			float minTfidfBody = Float.MAX_VALUE;
+                        float maxTfidfBody = Float.MIN_VALUE;
+                        float minBM25Body = Float.MAX_VALUE;
+                        float maxBM25Body = Float.MIN_VALUE;
+                        float avgTfidfBody = 0;
+                        float avgBM25Body = 0;
                         start = true;
                         for (String term : queryTerms) {
                                 Query subQuery = queryParser.parse("body:" + term);
+                                searcher.setSimilarity(new ClassicSimilarity());
                                 float subTfidf = getScore(searcher, subQuery, hits[i].doc);
+                                searcher.setSimilarity(new BM25Similarity());
+                                float subBM25  = getScore(searcher, subQuery, hits[i].doc);
                                 if (subTfidf < minTfidfBody) minTfidfBody = subTfidf;
                                 if (subTfidf > maxTfidfBody) maxTfidfBody = subTfidf;
+                                if (subBM25 < minBM25Body)   minBM25Body  = subBM25;
+                                if (subBM25 > maxBM25Body)   maxBM25Body  = subBM25;
                                 avgTfidfBody += subTfidf;
-                        }			
-			avgTfidfBody /= queryLength;
+                                avgBM25Body += subBM25;
+                        }
+                        avgTfidfBody /= queryLength;
+                        avgBM25Body /= queryLength;
 
 			float minInvMinDistanceTitle = Float.MAX_VALUE;
 			float maxInvMinDistanceTitle = Float.MIN_VALUE;
@@ -244,15 +264,21 @@ public class searchIndex {
 					+ " 7:" + String.format("%.2f", avgTfidfBody)
 					+ " 8:" + String.format("%.2f", tfidfBody)  
 					+ " 9:" + String.format("%.2f", tfidf)      
-					+ " 10:" + String.format("%.2f", bm25Title)
-					+ " 11:" + String.format("%.2f", bm25Body)
-					+ " 12:" + String.format("%.2f", bm25)
-					+ " 13:" + String.format("%.2f", maxInvMinDistanceTitle)
-					+ " 14:" + String.format("%.2f", minInvMinDistanceTitle)
-					+ " 15:" + String.format("%.2f", avgInvMinDistanceTitle)
-					+ " 16:" + String.format("%.2f", maxInvMinDistanceBody)
-					+ " 17:" + String.format("%.2f", minInvMinDistanceBody)
-					+ " 18:" + String.format("%.2f", avgInvMinDistanceBody)
+					+ " 10:" + String.format("%.2f", maxBM25Title)
+                                        + " 11:" + String.format("%.2f", minBM25Title)
+                                        + " 12:" + String.format("%.2f", avgBM25Title)
+					+ " 13:" + String.format("%.2f", bm25Title)
+					+ " 14:" + String.format("%.2f", maxBM25Body)
+                                        + " 15:" + String.format("%.2f", minBM25Body)
+                                        + " 16:" + String.format("%.2f", avgBM25Body)
+					+ " 17:" + String.format("%.2f", bm25Body)
+					+ " 18:" + String.format("%.2f", bm25)
+					+ " 19:" + String.format("%.2f", maxInvMinDistanceTitle)
+					+ " 20:" + String.format("%.2f", minInvMinDistanceTitle)
+					+ " 21:" + String.format("%.2f", avgInvMinDistanceTitle)
+					+ " 22:" + String.format("%.2f", maxInvMinDistanceBody)
+					+ " 23:" + String.format("%.2f", minInvMinDistanceBody)
+					+ " 24:" + String.format("%.2f", avgInvMinDistanceBody)
 				);
 		}
 	}

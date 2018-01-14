@@ -39,8 +39,8 @@ import org.apache.lucene.store.LockObtainFailedException;
 
 public class buildIndex {
 
-	public static final String FILE_TO_INDEX_DIRECTORY = "/mnt/data1/datasets/lines-trec45.txt";
-	public static final String INDEX_DIRECTORY = "./index";
+	public static final String FILE_TO_INDEX_DIRECTORY = "./lines-ohsume.txt";
+	public static final String INDEX_DIRECTORY = "./ohsume-index";
 
 	public static final String FIELD_DOCID = "docid";
 	public static final String FIELD_TITLE = "title";
