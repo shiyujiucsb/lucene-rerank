@@ -1,4 +1,4 @@
-K = 20
+K = 50
 
 import warnings
 import numpy as np
@@ -13,7 +13,7 @@ real_rel = {}
 with open(sys.argv[2], "r") as qrels:
   for line in qrels:
     qid, _, _, rel = line.split(' ')
-    qid = int(qid)
+    qid = qid.strip()
     if int(rel) > 0:
       if qid in n_real_rel_docs:
         n_real_rel_docs[qid] += 1
@@ -51,6 +51,29 @@ def MAP(ranking_list, rel_list):
         p += count / (i+1.0)
     ap += p/n_real_rel_docs[qid]
   return ap/n_queries
+
+def recall_at_k(ranking_list, rel_list, K):
+  recall = 0.0
+  n_queries = 0
+  for qid in qid_lists:
+    top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
+               key = lambda x: x[0], reverse=True)[:K]
+    if len(top_docs) == 0: continue
+    recall += sum([x[1] for x in top_docs]) * 1.0 / n_real_rel_docs[qid]
+    n_queries += 1
+  return recall / n_queries
+
+def rprec_at_k(ranking_list, rel_list, K):
+  recall = 0.0
+  n_queries = 0
+  for qid in qid_lists:
+    n_lookup = min(K, n_real_rel_docs[qid])
+    top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
+               key = lambda x: x[0], reverse=True)[:n_lookup]
+    if len(top_docs) == 0: continue
+    recall += sum([x[1] for x in top_docs]) * 1.0 / n_real_rel_docs[qid]
+    n_queries += 1
+  return recall / n_queries
 
 def P_at_k(ranking_list, rel_list, K):
   precision = 0.0
@@ -116,7 +139,7 @@ with open(sys.argv[1], "r") as f:
       relevance_list.append(0)
     raw_relevance_list.append(int(terms[0]))
     assert ':' in terms[1]
-    qid = int(terms[1].split(':')[1])
+    qid = terms[1].split(':')[1].strip()
     if qid not in qid_lists:
       qid_lists[qid] = []
     qid_lists[qid].append(len(relevance_list)-1)
@@ -129,7 +152,6 @@ with open(sys.argv[1], "r") as f:
       feature_lists[fid].append(val)
 
 for feat in sorted(feature_lists.keys()):
-#for feat in [11]:
   AUC_inc = avg_AUC(relevance_list, feature_lists[feat])
   AUC_dec = avg_AUC(relevance_list, map(lambda x:-x, feature_lists[feat]))
   AUC = max(AUC_inc, AUC_dec)
@@ -140,11 +162,15 @@ for feat in sorted(feature_lists.keys()):
   map_inc = MAP(feature_lists[feat], relevance_list)
   map_dec = MAP(map(lambda x:-x, feature_lists[feat]), relevance_list)
   mapIR = max(map_inc, map_dec)
+  recall_inc = recall_at_k(feature_lists[feat], relevance_list, 1000)
+  recall_dec = recall_at_k(map(lambda x:-x, feature_lists[feat]), relevance_list, 1000)
+  recall = max(recall_inc, recall_dec)
+  rprec_inc = rprec_at_k(feature_lists[feat], relevance_list, 1000)
+  rprec_dec = rprec_at_k(map(lambda x:-x, feature_lists[feat]), relevance_list, 1000)
+  rprec = max(rprec_inc, rprec_dec)
   ndcg_inc = NDCG_at_k(feature_lists[feat], raw_relevance_list, K)
   ndcg_dec = NDCG_at_k(map(lambda x:-x, feature_lists[feat]), raw_relevance_list, K)
   ndcg = max(ndcg_inc, ndcg_dec)
-  print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f} {5:1.3f}".format( \
-         feat, p, ndcg, mapIR, AUC, r)
-#for qid in idcgs:
-#  print qid, idcgs[qid]
+  print "{0:3d} {1:1.3f} {2:1.3f} {3:1.3f} {4:1.3f} {5:1.3f} {6:1.3f} {7:1.3f}".format( \
+         feat, p, ndcg, mapIR, recall, rprec, AUC, r)
 
