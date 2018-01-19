@@ -56,6 +56,7 @@ def recall_at_k(ranking_list, rel_list, K):
   recall = 0.0
   n_queries = 0
   for qid in qid_lists:
+    if qid not in n_real_rel_docs: continue
     top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
                key = lambda x: x[0], reverse=True)[:K]
     if len(top_docs) == 0: continue
@@ -67,6 +68,7 @@ def rprec_at_k(ranking_list, rel_list, K):
   recall = 0.0
   n_queries = 0
   for qid in qid_lists:
+    if qid not in n_real_rel_docs: continue
     n_lookup = min(K, n_real_rel_docs[qid])
     top_docs = sorted([(ranking_list[i], rel_list[i]) for i in qid_lists[qid]], \
                key = lambda x: x[0], reverse=True)[:n_lookup]
