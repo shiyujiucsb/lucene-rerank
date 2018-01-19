@@ -1,11 +1,14 @@
 qrels = {}
-
-with open("qrels.robust2004.txt", "r") as f:
+import sys
+assert len(sys.argv) == 3
+qrels_file = sys.argv[2]
+docs_file  = sys.argv[1]
+with open(qrels_file, "r") as f:
   for line in f:
     qid, _, fid, rel = line.split(' ')
     qrels[(qid, fid)] = int(rel)
 
-with open("matched_docs.txt") as f:
+with open(docs_file, "r") as f:
   for line in f:
     terms = line.split(' ')
     qid, fid = terms[0], terms[1]
