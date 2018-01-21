@@ -41,7 +41,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 
-public class searchIndex {
+public class rawGen {
 	public static final int TOP = 2000;
 
 	public static final String INDEX_DIRECTORY = "./trec45-index";
@@ -159,6 +159,12 @@ public class searchIndex {
 		//System.out.println("Number of hits: " + topDocs.totalHits);
 
 		for (int i=0; i<Math.min(TOP, topDocs.totalHits); i++) {
+			Vector<Float> titleTfidfRaw = new Vector<Float>();
+                	Vector<Float> titleBM25Raw = new Vector<Float>();
+                	Vector<Float> bodyTfidfRaw = new Vector<Float>();
+                	Vector<Float> bodyBM25Raw = new Vector<Float>();
+        	        Vector<Float> titleProxRaw = new Vector<Float>();
+	                Vector<Float> bodyProxRaw = new Vector<Float>();
 			Document document = searcher.doc(hits[i].doc);
 			String docid = document.getField("docid").stringValue();
 			searcher.setSimilarity(new BM25Similarity());
@@ -193,6 +199,8 @@ public class searchIndex {
 				if (subBM25 > maxBM25Title)   maxBM25Title  = subBM25;
 				avgTfidfTitle += subTfidf;
 				avgBM25Title += subBM25;
+				titleTfidfRaw.add(subTfidf);
+				titleBM25Raw.add(subBM25);
                 	}
 			avgTfidfTitle /= queryLength;
 			avgBM25Title /= queryLength;
@@ -216,6 +224,8 @@ public class searchIndex {
                                 if (subBM25 > maxBM25Body)   maxBM25Body  = subBM25;
                                 avgTfidfBody += subTfidf;
                                 avgBM25Body += subBM25;
+				bodyTfidfRaw.add(subTfidf);
+				bodyBM25Raw.add(subBM25);
                         }
                         avgTfidfBody /= queryLength;
                         avgBM25Body /= queryLength;
@@ -236,6 +246,7 @@ public class searchIndex {
 					if (invMinDistance < minInvMinDistanceTitle)
                                                 minInvMinDistanceTitle = invMinDistance;
 					avgInvMinDistanceTitle += invMinDistance;
+					titleProxRaw.add(invMinDistance);
 					invMinDistance =
                                                 getMinDistance(searcher, queryParser, hits[i].doc, 
 								"body", queryTerms.get(k), queryTerms.get(j));
@@ -244,6 +255,7 @@ public class searchIndex {
                                         if (invMinDistance < minInvMinDistanceBody)
                                                 minInvMinDistanceBody = invMinDistance;
                                         avgInvMinDistanceBody += invMinDistance;
+					bodyProxRaw.add(invMinDistance);
 				}
 			}
 			if (queryLength > 1) {
@@ -254,7 +266,7 @@ public class searchIndex {
 				maxInvMinDistanceTitle = minInvMinDistanceTitle = avgInvMinDistanceTitle = 0;
 				maxInvMinDistanceBody = minInvMinDistanceBody = avgInvMinDistanceBody = 0;
 			}
-			System.out.println(qid + " " + docid 
+			String line = qid + " " + docid 
 					+ " 1:" + String.format("%.4f", maxTfidfTitle)
 					+ " 2:" + String.format("%.4f", minTfidfTitle)
 					+ " 3:" + String.format("%.4f", avgTfidfTitle)
@@ -278,8 +290,33 @@ public class searchIndex {
 					+ " 21:" + String.format("%.4f", avgInvMinDistanceTitle)
 					+ " 22:" + String.format("%.4f", maxInvMinDistanceBody)
 					+ " 23:" + String.format("%.4f", minInvMinDistanceBody)
-					+ " 24:" + String.format("%.4f", avgInvMinDistanceBody)
-				);
+					+ " 24:" + String.format("%.4f", avgInvMinDistanceBody);
+			int fno = 25;
+			for(int k=0; k<titleTfidfRaw.size(); k++) {
+				line += " "+Integer.toString(fno)+":"+ String.format("%.4f", titleTfidfRaw.get(k));
+				fno++;
+			}
+			for(int k=0; k<bodyTfidfRaw.size(); k++) {
+                                line += " "+Integer.toString(fno)+":"+ String.format("%.4f", bodyTfidfRaw.get(k));
+                                fno++;
+                        }
+			for(int k=0; k<titleBM25Raw.size(); k++) {
+                                line += " "+Integer.toString(fno)+":"+ String.format("%.4f", titleBM25Raw.get(k));
+                                fno++;
+                        }
+			for(int k=0; k<bodyBM25Raw.size(); k++) {
+                                line += " "+Integer.toString(fno)+":"+ String.format("%.4f", bodyBM25Raw.get(k));
+                                fno++;
+                        }
+			for(int k=0; k<titleProxRaw.size(); k++) {
+                                line += " "+Integer.toString(fno)+":"+ String.format("%.4f", titleProxRaw.get(k));
+                                fno++;
+                        }
+			for(int k=0; k<bodyProxRaw.size(); k++) {
+                                line += " "+Integer.toString(fno)+":"+ String.format("%.4f", bodyProxRaw.get(k));
+                                fno++;
+                        }
+			System.out.println(line);
 		}
 	}
 
