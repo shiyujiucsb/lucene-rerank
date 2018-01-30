@@ -80,9 +80,9 @@ public class buildIndex {
 				document.add(new StringField(FIELD_DOCID, fields[0], 
 						Field.Store.YES));
 				document.add(new TextField(FIELD_TITLE, 
-						new BufferedReader(new StringReader(stemming(fields[1])))));
+						new BufferedReader(new StringReader(fields[1]))));
 				document.add(new TextField(FIELD_BODY, 
-						new BufferedReader(new StringReader(stemming(fields[2])))));
+						new BufferedReader(new StringReader(fields[2]))));
 				indexWriter.addDocument(document);
 			}
 		}
