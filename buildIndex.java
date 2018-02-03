@@ -17,6 +17,7 @@ import java.util.StringTokenizer;
 
 import org.tartarus.snowball.ext.EnglishStemmer;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -39,8 +40,8 @@ import org.apache.lucene.store.LockObtainFailedException;
 
 public class buildIndex {
 
-	public static final String FILE_TO_INDEX_DIRECTORY = "./lines-ohsume.txt";
-	public static final String INDEX_DIRECTORY = "./ohsume-index";
+	public static final String FILE_TO_INDEX_DIRECTORY = "lines-trec45.txt";
+	public static final String INDEX_DIRECTORY = "./trec45-index";
 
 	public static final String FIELD_DOCID = "docid";
 	public static final String FIELD_TITLE = "title";
@@ -66,7 +67,8 @@ public class buildIndex {
 	}
 
 	public static void createIndex() throws CorruptIndexException, LockObtainFailedException, IOException, Exception {
-		Analyzer analyzer = new StandardAnalyzer();
+		CharArraySet emptyStopwords = new CharArraySet(0, true);
+		Analyzer analyzer = new StandardAnalyzer(emptyStopwords);
 		Directory dir = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
 		IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 		iwc.setOpenMode(OpenMode.CREATE);
