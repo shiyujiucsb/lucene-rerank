@@ -1,4 +1,4 @@
-K = 50
+K = 20
 
 import warnings
 import numpy as np
